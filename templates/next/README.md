@@ -1,1 +1,1 @@
-Create Next Template
+Next.js Template
