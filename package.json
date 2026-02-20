@@ -1,6 +1,6 @@
 {
   "name": "create-sc-template",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "main": "index.js",
   "type": "module",
   "bin": {
@@ -22,17 +22,17 @@
     "typescript",
     "fullstack"
   ],
-  "author": "hpk992",
+  "author": "hpk935",
   "license": "ISC",
   "description": "A template cli for creating new projects",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hpk992/create-sc-template.git"
+    "url": "git+https://github.com/hpk935/create-sc-template.git"
   },
   "bugs": {
-    "url": "https://github.com/hpk992/create-sc-template/issues"
+    "url": "https://github.com/hpk935/create-sc-template/issues"
   },
-  "homepage": "https://github.com/hpk992/create-sc-template#readme",
+  "homepage": "https://github.com/hpk935/create-sc-template#readme",
   "dependencies": {
     "inquirer": "^10.1.2"
   }
