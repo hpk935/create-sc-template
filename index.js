@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import inquirer from 'inquirer';
-import * as fs from 'fs';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import inquirer from "inquirer";
+import * as fs from "fs";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 // template dir
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,39 +14,67 @@ const CURR_DIR = process.cwd();
 const CHOICES = fs.readdirSync(`${__dirname}/templates`);
 const QUESTIONS = [
   {
-    name: 'project-choice',
-    type: 'list',
-    message: 'What project template would you like to generate?',
+    name: "project-choice",
+    type: "list",
+    message: "What project template would you like to generate?",
     choices: CHOICES,
   },
   {
-    name: 'project-name',
-    type: 'input',
-    message: 'Project name:',
+    name: "db-choice",
+    type: "list",
+    message: "Which database would you like to use?",
+    choices: ["mongodb", "postgresql"],
+    when: (answers) => answers["project-choice"] === "next",
+  },
+  {
+    name: "project-name",
+    type: "input",
+    message: "Project name:",
     validate: function (input) {
       if (/^([A-Za-z\-\\_\d])+$/.test(input)) return true;
       else
-        return 'Project name may only include letters, numbers, underscores and hashes.';
+        return "Project name may only include letters, numbers, underscores and hashes.";
     },
   },
 ];
 
 inquirer.prompt(QUESTIONS).then((answers) => {
-  const projectChoice = answers['project-choice'];
-  const projectName = answers['project-name'];
+  const projectChoice = answers["project-choice"];
+  const projectName = answers["project-name"];
+  const dbChoice = answers["db-choice"];
   const templatePath = `${__dirname}/templates/${projectChoice}`;
 
   fs.mkdirSync(`${CURR_DIR}/${projectName}`);
 
   createDirContent(templatePath, projectName);
 
-  console.log('Installing dependencies...');
+  // copy db overlay files and inject dependencies for next template
+  if (projectChoice === "next" && dbChoice) {
+    const dbOverlayPath = `${templatePath}/_db/${dbChoice}`;
+    createDirContent(dbOverlayPath, projectName);
+
+    // inject db dependencies into package.json
+    const pkgPath = `${CURR_DIR}/${projectName}/package.json`;
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+
+    if (dbChoice === "mongodb") {
+      pkg.dependencies["mongoose"] = "^8";
+    } else if (dbChoice === "postgresql") {
+      pkg.dependencies["drizzle-orm"] = "^0.44";
+      pkg.dependencies["postgres"] = "^3";
+      pkg.devDependencies["drizzle-kit"] = "^0.31";
+    }
+
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), "utf8");
+  }
+
+  console.log("Installing dependencies...");
   const npmInstall = runCommand(`cd ${projectName} && npm i`);
   if (!npmInstall) process.exit(1);
 
-  console.log('Setting up local git...');
+  console.log("Setting up local git...");
   const setupGit = runCommand(
-    `cd ${projectName} && git init && git add . && git commit -m 'initial d'`
+    `cd ${projectName} && git init && git add . && git commit -m 'initial d'`,
   );
   if (!setupGit) process.exit(1);
 
@@ -63,14 +91,17 @@ function createDirContent(templatePath, newProjectPath) {
     const origFilePath = `${templatePath}/${file}`;
     const fileType = fs.statSync(origFilePath);
 
+    // skip overlay directories (prefixed with _)
+    if (file.startsWith("_") && fileType.isDirectory()) return;
+
     if (fileType.isFile()) {
-      const content = fs.readFileSync(origFilePath, 'utf8');
+      const content = fs.readFileSync(origFilePath, "utf8");
       // .gitignore issue
-      if (file === 'gitignore.temp') file = '.gitignore';
+      if (file === "gitignore.temp") file = ".gitignore";
 
       const writePath = `${CURR_DIR}/${newProjectPath}/${file}`;
 
-      fs.writeFileSync(writePath, content, 'utf8');
+      fs.writeFileSync(writePath, content, "utf8");
       console.log(`Creating ${writePath}`);
     } else if (fileType.isDirectory()) {
       fs.mkdirSync(`${CURR_DIR}/${newProjectPath}/${file}`);
@@ -84,7 +115,7 @@ function createDirContent(templatePath, newProjectPath) {
 // run command in cli
 const runCommand = (command) => {
   try {
-    execSync(`${command}`, { stdio: 'inherit' });
+    execSync(`${command}`, { stdio: "inherit" });
   } catch (err) {
     console.error(`Failed to execute ${command}`, err);
     return false;
