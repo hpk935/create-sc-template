@@ -48,21 +48,36 @@ inquirer.prompt(QUESTIONS).then((answers) => {
 
   createDirContent(templatePath, projectName);
 
-  // copy db overlay files and inject dependencies for next template
-  if (projectChoice === "next" && dbChoice) {
-    const dbOverlayPath = `${templatePath}/_db/${dbChoice}`;
-    createDirContent(dbOverlayPath, projectName);
-
-    // inject db dependencies into package.json
+  // for next template: fetch latest versions and inject db dependencies
+  if (projectChoice === "next") {
     const pkgPath = `${CURR_DIR}/${projectName}/package.json`;
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
-    if (dbChoice === "mongodb") {
-      pkg.dependencies["mongoose"] = "^8";
-    } else if (dbChoice === "postgresql") {
-      pkg.dependencies["drizzle-orm"] = "^0.44";
-      pkg.dependencies["postgres"] = "^3";
-      pkg.devDependencies["drizzle-kit"] = "^0.31";
+    // fetch latest next version (mirrors create-next-app behavior)
+    try {
+      const nextVersion = execSync("npm view next version", {
+        encoding: "utf8",
+      }).trim();
+      pkg.dependencies["next"] = nextVersion;
+      pkg.devDependencies["eslint-config-next"] = nextVersion;
+    } catch {
+      console.warn(
+        "Could not fetch latest next version, using template default.",
+      );
+    }
+
+    // copy db overlay files and inject db dependencies
+    if (dbChoice) {
+      const dbOverlayPath = `${templatePath}/_db/${dbChoice}`;
+      createDirContent(dbOverlayPath, projectName);
+
+      if (dbChoice === "mongodb") {
+        pkg.dependencies["mongoose"] = "^8";
+      } else if (dbChoice === "postgresql") {
+        pkg.dependencies["drizzle-orm"] = "^0.44";
+        pkg.dependencies["postgres"] = "^3";
+        pkg.devDependencies["drizzle-kit"] = "^0.31";
+      }
     }
 
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), "utf8");
